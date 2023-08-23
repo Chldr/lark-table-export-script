@@ -1,0 +1,26 @@
+{
+  "name": "haier-prompt-table-lark-script",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@base-open/web-api": "https://lf3-static.bytednsdoc.com/obj/eden-cn/jjjpceh7nulojvhj/base-open-web-api-0.2.0-alpha.11.tgz",
+    "@douyinfe/semi-foundation": "^2.41.3",
+    "@douyinfe/semi-ui": "^2.41.3",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.15",
+    "@types/react-dom": "^18.2.7",
+    "@vitejs/plugin-react": "^4.0.3",
+    "prettier": "^3.0.2",
+    "typescript": "^5.0.2",
+    "vite": "^4.4.5"
+  }
+}
