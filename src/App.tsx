@@ -1,7 +1,6 @@
 import "./App.css";
 import { bitable, IOpenSegmentType } from "@base-open/web-api";
 import { Button } from "@douyinfe/semi-ui";
-import { createElement } from "react";
 
 // Text you want to find
 const findText = "hi";
