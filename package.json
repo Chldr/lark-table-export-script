@@ -9,9 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@base-open/web-api": "https://lf3-static.bytednsdoc.com/obj/eden-cn/jjjpceh7nulojvhj/base-open-web-api-0.2.0-alpha.11.tgz",
-    "@douyinfe/semi-foundation": "^2.41.3",
-    "@douyinfe/semi-ui": "^2.41.3",
+    "@lark-base-open/js-sdk": "^0.2.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },

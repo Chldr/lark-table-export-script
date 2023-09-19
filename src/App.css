@@ -6,3 +6,16 @@ main {
 main button {
   width: 90%;
 }
+
+main {
+  .export-btn {
+    height: 40px;
+    outline: none;
+    border: 1px solid;
+    border-color: rgb(20, 86, 240);
+    border-radius: 4px;
+    background-color: rgb(20, 86, 240);
+    color: #FFFFFF;
+    cursor: pointer;
+  }
+}
