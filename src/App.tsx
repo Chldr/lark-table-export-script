@@ -1,5 +1,9 @@
 import "./App.css";
 import { bitable, IOpenSegmentType } from "@lark-base-open/js-sdk";
+import { uploadJSON } from "./utils/upload";
+import { createClient } from "./utils/oss";
+import { ToastContainer, toast } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
 
 type RecordContentType = {
   dir: string;
@@ -7,40 +11,40 @@ type RecordContentType = {
   lang_zh: string;
   team: string;
 };
-type BaseResponse<DataType = unknown> = {
-  code: number;
-  msg: string | null;
-  data: DataType | null;
-};
+// type BaseResponse<DataType = unknown> = {
+//   code: number;
+//   msg: string | null;
+//   data: DataType | null;
+// };
 
-const INF_MONKEY_API_DOMAIN = "http://api.infmonkeys.hg.com:80/api";
-function infMonkeyAPI(path: string) {
-  return `${INF_MONKEY_API_DOMAIN}${path}`;
-}
+// const INF_MONKEY_API_DOMAIN = "http://api.infmonkeys.hg.com:80/api";
+// function infMonkeyAPI(path: string) {
+//   return `${INF_MONKEY_API_DOMAIN}${path}`;
+// }
 
-/**
- * 上传文件到 S3
- * @param {string} fileKey
- * @param {File} file
- * @returns
- */
-export async function uploadFile(fileKey: string, file: File): Promise<string> {
-  const { baseUrl } = (await fetch(infMonkeyAPI("/medias/s3/configs")).then((res) => res.json())) ?? {};
-  console.log("baseUrl: ", baseUrl);
-  // filekey 建议为 frame/files/xxxx.json
-  const uploadUrl = await fetch(infMonkeyAPI(`/medias/s3/presign?key=${fileKey}`)).then((res) => res.json());
-  console.log("uploadUrl: ", uploadUrl);
-  // file 为文件对象（File）
+// /**
+//  * 上传文件到 S3
+//  * @param {string} fileKey
+//  * @param {File} file
+//  * @returns
+//  */
+// export async function uploadFile(fileKey: string, file: File): Promise<string> {
+//   const { baseUrl } = (await fetch(infMonkeyAPI("/medias/s3/configs")).then((res) => res.json())) ?? {};
+//   console.log("baseUrl: ", baseUrl);
+//   // filekey 建议为 frame/files/xxxx.json
+//   const uploadUrl = await fetch(infMonkeyAPI(`/medias/s3/presign?key=${fileKey}`)).then((res) => res.json());
+//   console.log("uploadUrl: ", uploadUrl);
+//   // file 为文件对象（File）
 
-  await fetch(uploadUrl, {
-    method: "PUT",
-    body: file,
-  }).then((res) => res.json());
-  // 可以通过这个链接访问到上传好的文件
-  const fullUrl = baseUrl + fileKey;
-  console.log("fullUrl: ", fullUrl);
-  return fullUrl;
-}
+//   await fetch(uploadUrl, {
+//     method: "PUT",
+//     body: file,
+//   }).then((res) => res.json());
+//   // 可以通过这个链接访问到上传好的文件
+//   const fullUrl = baseUrl + fileKey;
+//   console.log("fullUrl: ", fullUrl);
+//   return fullUrl;
+// }
 
 export default function App() {
   const replace = async () => {
@@ -138,23 +142,38 @@ export default function App() {
     const promptTableMapJsonStr = JSON.stringify(promptTableMap);
     //  预设词条表
     const presetPromptMapJsonStr = JSON.stringify(presetPromptMap);
+    const ossPath = "/creator/haier/";
 
-    const promptTableMapFile = new File([promptTableMapJsonStr], "export.json", { type: "application/json" });
-    const presetPromptMapFile = new File([presetPromptMapJsonStr], "export.json", { type: "application/json" });
+    const { client: ossClient } = await createClient();
+    Promise.all([
+      uploadJSON(promptTableMapJsonStr, ossClient, "prompt-table.json", ossPath),
+      uploadJSON(presetPromptMapJsonStr, ossClient, "preset-prompts.json", ossPath),
+    ]).then((res) => {
+      console.log("uploaded all", res);
 
-    download(
-      promptTableMapFile,
-      `prompt-table_${new Date().getFullYear()}/${
-        new Date().getMonth() + 1
-      }/${new Date().getDate()}:${new Date().getHours()}:${new Date().getMinutes()}:${new Date().getSeconds()}.json`,
-    );
+      if (!!res?.[0]?.url && !!res?.[1]?.url) {
+        toast.success("上传成功");
+      } else {
+        toast.error("上传遇到问题，请重试");
+      }
+    });
 
-    download(
-      presetPromptMapFile,
-      `preset-prompts_${new Date().getFullYear()}/${
-        new Date().getMonth() + 1
-      }/${new Date().getDate()}:${new Date().getHours()}:${new Date().getMinutes()}:${new Date().getSeconds()}.json`,
-    );
+    // const promptTableMapFile = new File([promptTableMapJsonStr], "export.json", { type: "application/json" });
+    // const presetPromptMapFile = new File([presetPromptMapJsonStr], "export.json", { type: "application/json" });
+
+    // download(
+    //   promptTableMapFile,
+    //   `prompt-table_${new Date().getFullYear()}/${
+    //     new Date().getMonth() + 1
+    //   }/${new Date().getDate()}:${new Date().getHours()}:${new Date().getMinutes()}:${new Date().getSeconds()}.json`,
+    // );
+
+    // download(
+    //   presetPromptMapFile,
+    //   `preset-prompts_${new Date().getFullYear()}/${
+    //     new Date().getMonth() + 1
+    //   }/${new Date().getDate()}:${new Date().getHours()}:${new Date().getMinutes()}:${new Date().getSeconds()}.json`,
+    // );
 
     // const promptTableFileUrl = await uploadFile("frame/files/prompt_table_map.json", promptTableMapFile);
     // console.log("promptTableFileUrl: ", promptTableFileUrl);
@@ -163,22 +182,22 @@ export default function App() {
     // console.log("presetPromptMapFileUrl: ", presetPromptMapFileUrl);
   };
 
-  function download(context: Blob, name: string) {
-    const a = document.createElement("a");
-    a.setAttribute("download", name);
-    let url = URL.createObjectURL(context);
-    a.href = url;
-    a.click();
-    a.remove();
-    setTimeout(() => {
-      URL.revokeObjectURL(url);
-    }, 1000);
-  }
+  // function download(context: Blob, name: string) {
+  //   const a = document.createElement("a");
+  //   a.setAttribute("download", name);
+  //   let url = URL.createObjectURL(context);
+  //   a.href = url;
+  //   a.click();
+  //   a.remove();
+  //   setTimeout(() => {
+  //     URL.revokeObjectURL(url);
+  //   }, 1000);
+  // }
 
   return (
     <main>
       <button className="export-btn" onClick={replace}>
-        导出词表
+        上传词表
       </button>
     </main>
   );
