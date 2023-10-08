@@ -106,9 +106,7 @@ export default function App() {
 
     // 词块表
     const promptTableMap = teams.reduce<Record<string, Array<RecordContentType>>>((obj, team) => {
-      if (team !== PRESET_TEAM) {
-        obj[team] = [];
-      }
+      obj[team] = [];
       return obj;
     }, {});
 
@@ -121,14 +119,13 @@ export default function App() {
     wordList.forEach((record) => {
       const { team, dir } = record;
       if (team) {
-        if (team !== PRESET_TEAM) {
-          if (record.text) {
-            promptTableMap[team].push(record);
-          }
-        }
         if (dir === PRESET_DIR) {
           if (record.text) {
             presetPromptMap[team].push(record);
+          }
+        } else {
+          if (record.text) {
+            promptTableMap[team].push(record);
           }
         }
       }
