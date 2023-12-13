@@ -67,22 +67,46 @@ export default function App() {
     // Get all records
     const recordIdList = await table.getRecordIdList();
     const wordList: RecordContentType[] = [];
+    const negativeWordList: RecordContentType[] = [];
     const teamSet = new Set<string>();
 
     if (!textFields) return;
     console.log("recordIdList: ", recordIdList);
     for (let i = 0; i < recordIdList.length; i++) {
+      let isNegativeRecord = false;
       const obj: RecordContentType = {
         dir: "",
         text: "",
         lang_zh: "",
         team: "",
       };
-      for (const field of textFields) {
-        // Get cell string from specified fieldId and recordId
+      const negativeFields = textFields.filter((field) => field.name.includes("负面词"));
+      const forPromptFields = textFields.filter((field) => field.name.includes("关键词"));
+      // 如果负面词有值，isNegativeRecord  设置为 true
+      const negativeFieldValueMap = negativeFields.reduce<{ [id: string]: string }>((map, f) => {
+        map[f.id] = "";
+        return map;
+      }, {});
+      for (const field of negativeFields) {
         const cellString = await table.getCellString(field.id!, recordIdList[i]!);
-        const fieldName = field.name.split("-").at(-1) ?? field.name;
-        obj[fieldName as keyof RecordContentType] = cellString;
+        negativeFieldValueMap[field.id] = cellString;
+        if (cellString) {
+          const fieldName = field.name.split("-").at(-1) ?? field.name;
+          obj[fieldName as keyof RecordContentType] = cellString;
+        }
+      }
+      if (Object.values(negativeFieldValueMap).some(value => !!value)) {
+        isNegativeRecord = true;
+      }
+
+      
+      if (!isNegativeRecord) {
+        for (const field of forPromptFields) {
+          // Get cell string from specified fieldId and recordId
+          const cellString = await table.getCellString(field.id!, recordIdList[i]!);
+          const fieldName = field.name.split("-").at(-1) ?? field.name;
+          obj[fieldName as keyof RecordContentType] = cellString;
+        }
       }
 
       for (const field of singleSelectFields) {
@@ -91,10 +115,23 @@ export default function App() {
         obj[fieldName as keyof RecordContentType] = cellString;
       }
 
-      if (!obj.team) continue;
-      wordList.push(obj);
+      // 加上团队项
+      if (!obj.team) {
+        continue;
+      }
       if (!teamSet.has(obj.team)) {
         teamSet.add(obj.team);
+      }
+
+      // 加上词条
+      if (Object.values(obj).some(v => !v)) {
+        continue;
+      }
+      
+      if (isNegativeRecord) {
+        negativeWordList.push(obj);
+      } else {
+        wordList.push(obj);
       }
     }
 
@@ -116,6 +153,12 @@ export default function App() {
       return obj;
     }, {});
 
+     // 负面词表
+    const negativePromptTableMap = teams.reduce<Record<string, Array<RecordContentType>>>((obj, team) => {
+      obj[team] = [];
+      return obj;
+    }, {});
+
     wordList.forEach((record) => {
       const { team, dir } = record;
       if (team) {
@@ -131,20 +174,41 @@ export default function App() {
       }
     });
 
+    negativeWordList.forEach((record) => {
+      const { team, dir } = record;
+      if (team) {
+        if (dir === PRESET_DIR) {
+          // if (record.text) {
+          //   presetPromptMap[team].push(record);
+          // }
+        } else {
+          if (record.text) {
+            negativePromptTableMap[team].push(record);
+          }
+        }
+      }
+    })
+
     console.log("wordList", wordList);
+    console.log("negativeWordList", negativeWordList);
     console.log("promptTableMap: ", promptTableMap);
     console.log("presetPromptMap: ", presetPromptMap);
+    console.log('negativePromptTableMap: ', negativePromptTableMap);
 
     // 词块表
     const promptTableMapJsonStr = JSON.stringify(promptTableMap);
     //  预设词条表
     const presetPromptMapJsonStr = JSON.stringify(presetPromptMap);
+    // 负面词块表
+    const  negativePromptTableMapJsonStr = JSON.stringify(negativePromptTableMap);
+    
     const ossPath = "/creator/haier/";
 
     const { client: ossClient } = await createClient();
     Promise.all([
       uploadJSON(promptTableMapJsonStr, ossClient, "prompt-table.json", ossPath),
       uploadJSON(presetPromptMapJsonStr, ossClient, "preset-prompts.json", ossPath),
+      uploadJSON(negativePromptTableMapJsonStr, ossClient, "negative-prompt-table.json", ossPath),
     ]).then((res) => {
       console.log("uploaded all", res);
 
@@ -154,29 +218,6 @@ export default function App() {
         toast.error("上传遇到问题，请重试");
       }
     });
-
-    // const promptTableMapFile = new File([promptTableMapJsonStr], "export.json", { type: "application/json" });
-    // const presetPromptMapFile = new File([presetPromptMapJsonStr], "export.json", { type: "application/json" });
-
-    // download(
-    //   promptTableMapFile,
-    //   `prompt-table_${new Date().getFullYear()}/${
-    //     new Date().getMonth() + 1
-    //   }/${new Date().getDate()}:${new Date().getHours()}:${new Date().getMinutes()}:${new Date().getSeconds()}.json`,
-    // );
-
-    // download(
-    //   presetPromptMapFile,
-    //   `preset-prompts_${new Date().getFullYear()}/${
-    //     new Date().getMonth() + 1
-    //   }/${new Date().getDate()}:${new Date().getHours()}:${new Date().getMinutes()}:${new Date().getSeconds()}.json`,
-    // );
-
-    // const promptTableFileUrl = await uploadFile("frame/files/prompt_table_map.json", promptTableMapFile);
-    // console.log("promptTableFileUrl: ", promptTableFileUrl);
-
-    // const presetPromptMapFileUrl = await uploadFile("frame/files/preset_prompt_map.json", presetPromptMapFile);
-    // console.log("presetPromptMapFileUrl: ", presetPromptMapFileUrl);
   };
 
   // function download(context: Blob, name: string) {
